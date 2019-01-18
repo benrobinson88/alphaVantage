@@ -5,11 +5,19 @@ import config
 from pprint import pprint
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from datetime import datetime
+from collections import deque
 
 #Get the data
-ts = TimeSeries(key=config.av_key, output_format = 'pandas')
-amazon_data, amazon_meta_data = ts.get_daily(symbol='AMZN', outputsize='full')
+gotData = False 
+while gotData == False:
+		try:
+			ts = TimeSeries(key=config.av_key, output_format = 'pandas')
+			amazon_data, amazon_meta_data = ts.get_daily(symbol='AMZN', outputsize='full')
+			gotData = True
+		except:
+			print('alpha vantage api error')
 
 #Potting closing price
 amazon_data['4. close'].plot()
@@ -27,13 +35,25 @@ plt.show()
 ## Related Securities
 
 #Pull in other tech stocks
-google_data, google_meta_data = ts.get_daily(symbol='GOOG', outputsize='full')
-facebook_data, facebook_meta_data = ts.get_daily(symbol='FB', outputsize='full')
+
+got_tech_data = False
+while got_tech_data == False:
+	try:
+		google_data, google_meta_data = ts.get_daily(symbol='GOOG', outputsize='full')
+		facebook_data, facebook_meta_data = ts.get_daily(symbol='FB', outputsize='full')
+		got_tech_data = True
+	except:
+		print('alpha vantage api error')
 
 
 #Pull in Walmart
-walmart_data, walmart_meta_data = ts.get_daily(symbol='WMT', outputsize='full')
-
+got_walmart_data = False
+while got_walmart_data == False:
+	try:
+		walmart_data, walmart_meta_data = ts.get_daily(symbol='WMT', outputsize='full')
+		got_walmart_data = True
+	except:
+		print('alpha vantage api error')
 #Merge the data
 amazon_data['amazon_close'] = amazon_data['4. close']
 google_data['google_close'] = google_data['4. close']
@@ -90,3 +110,25 @@ new_amazon_df = get_technical_indicators(combined_df)
 
 new_amazon_df = new_amazon_df['2015-01-01':]
 print(new_amazon_df.head())
+
+#fourier transform
+
+amazon_df_FT = new_amazon_df[['amazon_close']]
+
+close_fft = np.fft.fft(np.asarray(amazon_df_FT['amazon_close'].tolist()))
+amazon_fft_df = pd.DataFrame({'fft': close_fft})
+amazon_fft_df['absolute'] = amazon_fft_df['fft'].apply(lambda x: np.abs(x))
+amazon_fft_df['angle'] = amazon_fft_df['fft'].apply(lambda x: np.angle(x)) 
+
+
+print(amazon_fft_df.head())
+
+#wavelets
+
+
+items = deque(np.asarray(amazon_fft_df['absolute'].tolist()))
+items.rotate(int(np.floor(len(amazon_fft_df)/2)))
+plt.figure(figsize=(10,7), dpi=80)
+plt.stem(items)
+plt.title('Wavlets')
+plt.show()
