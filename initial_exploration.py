@@ -14,6 +14,7 @@ from pandas import datetime
 from pandas.tools.plotting import autocorrelation_plot
 from sklearn.metrics import mean_squared_error
 
+import xgboost as xgb
 #Get the data
 gotData = False 
 while gotData == False:
@@ -174,4 +175,62 @@ plt.ylabel('USD')
 plt.title('ARIMA model on Amazon Stock')
 plt.legend()
 plt.show()
+
+
+#XGBoost
+
+def get_feature_importance_data(data_income):
+	data = data_income.copy()
+	y = data['amazon_close']
+	X = data.iloc[:, 1:]
+
+	train_samples = int(X.shape[0] * .65)
+
+	X_train = X.iloc[:train_samples]
+	X_test = X.iloc[train_samples:]
+
+	y_train = y.iloc[:train_samples]
+	y_test = y.iloc[train_samples:]
+
+	return(X_train, y_train), (X_test, y_test)
+
+(X_train_FI, y_train_FI), (X_test_FI, y_test_FI) = get_feature_importance_data(new_amazon_df)
+
+regressor = xgb.XGBRegressor(gamma=0.0,\
+							n_estimators=150,\
+							base_score=0.7,\
+							colsample_bytree=1,\
+							learning_rate = 0.05)
+
+xgbModel = regressor.fit(X_train_FI, y_train_FI, \
+	eval_set = [(X_train_FI, y_train_FI), (X_test_FI, y_test_FI)],\
+	verbose=False)
+
+eval_result = regressor.evals_result()
+
+training_rounds = range(len(eval_result['validation_0']['rmse']))
+
+plt.scatter(x=training_rounds,\
+			y=eval_result['validation_0']['rmse'],\
+			label='Training Error')
+
+plt.scatter(x=training_rounds,\
+			y=eval_result['validation_1']['rmse'],
+			label='Validation Error')
+
+plt.xlabel('Iterations')
+plt.ylabel('RMSE')
+plt.title('Training vs. Validation Error')
+plt.legend()
+plt.show()
+
+fig = plt.figure(figsize=(8,8))
+plt.xticks(rotation='vertical')
+plt.bar([i for i in range(len(xgbModel.feature_importances_))],\
+		xgbModel.feature_importances_.tolist(),\
+		tick_label=X_test_FI.columns)
+plt.title('Feature importance of technical indicators')
+plt.show()
+
+
 
