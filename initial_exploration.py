@@ -8,6 +8,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from collections import deque
+from statsmodels.tsa.arima_model import ARIMA
+from pandas import DataFrame
+from pandas import datetime
+from pandas.tools.plotting import autocorrelation_plot
+from sklearn.metrics import mean_squared_error
 
 #Get the data
 gotData = False 
@@ -132,3 +137,41 @@ plt.figure(figsize=(10,7), dpi=80)
 plt.stem(items)
 plt.title('Wavlets')
 plt.show()
+
+#ARIMA
+series = amazon_df_FT['amazon_close']
+model = ARIMA(series, order= (5, 1, 0))
+model_fit = model.fit(disp=0)
+print(model_fit.summary())
+
+#Autocorrelation
+autocorrelation_plot(series)
+plt.figure(figsize=(10,7), dpi=80)
+plt.show()
+
+X = series.values
+size = int(len(X) * .66)
+train, test = X[0:size], X[size:len(X)]
+history = [X for X in train]
+predictions = list()
+for t in range(len(test)):
+	model = ARIMA(history, order=(5,1,0))
+	model_fit = model.fit(disp=0)
+	output = model_fit.forecast()
+	yhat = output[0]
+	predictions.append(yhat)
+	obs=test[t]
+	history.append(obs)
+
+error = mean_squared_error(test, predictions)
+print('MSE on Test Set: %.3f' %error)
+
+plt.figure(figsize=(12,6), dpi=100)
+plt.plot(test, label='Actual')
+plt.plot(predictions, color='red', label='Predicted')
+plt.xlabel('Days')
+plt.ylabel('USD')
+plt.title('ARIMA model on Amazon Stock')
+plt.legend()
+plt.show()
+
